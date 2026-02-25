@@ -1,44 +1,66 @@
 ﻿using System;
+using System.Threading;
 
 public class BankCustomer
 {
-    public string name = "unknown";
-    public int id = Random.Shared.Next(1, 1000);
+    private static int _nextCustomerId = 0;
+
+    public string Name { get; }
+    public int Id { get; }
 
     public BankCustomer(string name)
     {
-        this.name = name;
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("O nome do cliente é obrigatório.", nameof(name));
+
+        Name = name.Trim();
+        Id = Interlocked.Increment(ref _nextCustomerId);
     }
 }
 
 public class BankAccount
 {
-    public string name { get; set; } = "undefined";
-    private int accountNumber = Random.Shared.Next(1, 1000);
-    public int balance { get; private set; } = 0;
-    public int getBalance()
-    {
-        return balance;
-    }
+    private static int _nextAccountNumber = 1000;
+
+    public string HolderName { get; }
+    public int AccountNumber { get; }
+    public int Balance { get; private set; }
 
     public BankAccount(BankCustomer customer)
+        : this(customer?.Name ?? throw new ArgumentNullException(nameof(customer)))
     {
-        this.name = customer.name;
     }
-    public BankAccount(string name)
+
+    public BankAccount(string holderName)
     {
-        this.name = name;
+        if (string.IsNullOrWhiteSpace(holderName))
+            throw new ArgumentException("O nome do titular é obrigatório.", nameof(holderName));
+
+        HolderName = holderName.Trim();
+        AccountNumber = Interlocked.Increment(ref _nextAccountNumber);
+        Balance = 0;
     }
+
     public void Deposit(int amount)
     {
-        if (amount <= 0) throw new Exception("Deposit amount must be positive.");
-        balance += amount;
+        if (amount <= 0)
+            throw new ArgumentOutOfRangeException(nameof(amount), "O valor de depósito deve ser maior que zero.");
+
+        checked
+        {
+            Balance += amount;
+        }
     }
+
     public void Withdraw(int amount)
     {
-        if (amount <= 0) throw new Exception("Withdraw amount must be positive.");
-        if (amount > balance) throw new Exception("Insufficient funds.");
-        balance -= amount;
+        if (amount <= 0)
+            throw new ArgumentOutOfRangeException(nameof(amount), "O valor de saque deve ser maior que zero.");
+
+        if (amount > Balance)
+            throw new InvalidOperationException("Saldo insuficiente.");
+
+        Balance -= amount;
     }
 }
 
@@ -46,57 +68,73 @@ static class Program
 {
     static void Main()
     {
-        BankCustomer customer = new BankCustomer("Diego");
-        Console.WriteLine($"Customer {customer.name} with ID {customer.id} has access to the bank.");
-        BankAccount account = new BankAccount(customer.name);
-        Console.WriteLine($"O saldo atualmente é de: (${account.getBalance()})");
+        var customer = new BankCustomer("Diego");
+        var account = new BankAccount(customer);
 
-        Console.WriteLine("Voce deseja depositar na sua conta? S ou N");
-        var answer = Console.ReadLine()?.Trim().ToLower();
-        if (answer == "s" || answer == "y")
-        {
-            Console.Write("Informe o valor a depositar: $");
-            var input = Console.ReadLine();
-            if (int.TryParse(input, out var amount) && amount > 0)
-            {
-                account.Deposit(amount);
-                Console.WriteLine($"Deposito realizado. Novo saldo: (${account.balance})");
-            }
-            else
-            {
-                Console.WriteLine("Valor invalido para deposito.");
-            }
-        }
+        Console.WriteLine($"Cliente {customer.Name} (ID {customer.Id}) acessou o banco.");
+        Console.WriteLine($"Conta #{account.AccountNumber} criada para {account.HolderName}.");
+        Console.WriteLine($"Saldo atual: R$ {account.Balance}");
 
-        Console.WriteLine("Voce deseja efetuar um saque? S ou N");
-        var withdrawAnswer = Console.ReadLine()?.Trim().ToLower();
-        if (withdrawAnswer == "s" || withdrawAnswer == "y")
-        {
-            Console.Write("Informe o valor a sacar: $");
-            var withdrawInput = Console.ReadLine();
-            if (int.TryParse(withdrawInput, out var wamount) && wamount > 0)
-            {
-                try
-                {
-                    account.Withdraw(wamount);
-                    Console.WriteLine($"Saque realizado. Novo saldo: (${account.balance})");
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Erro: {ex.Message}");
-                }
-            }
-            else
-            {
-                Console.WriteLine("Valor inválido para saque.");
-            }
-        }
-        else
-        {
-            Console.WriteLine("Operacao de saque cancelada.");
-        }
+        TryReadAndDeposit(account);
+        TryReadAndWithdraw(account);
 
+        Console.WriteLine($"Saldo final: R$ {account.Balance}");
         Console.WriteLine("Pressione Enter para sair...");
         Console.ReadLine();
+    }
+
+    private static void TryReadAndDeposit(BankAccount account)
+    {
+        Console.WriteLine("Você deseja depositar na sua conta? (S/N)");
+        var answer = Console.ReadLine()?.Trim().ToLowerInvariant();
+
+        if (answer is not ("s" or "y"))
+            return;
+
+        Console.Write("Informe o valor a depositar: R$ ");
+        if (!int.TryParse(Console.ReadLine(), out var amount))
+        {
+            Console.WriteLine("Valor inválido para depósito.");
+            return;
+        }
+
+        try
+        {
+            account.Deposit(amount);
+            Console.WriteLine($"Depósito realizado. Novo saldo: R$ {account.Balance}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erro ao depositar: {ex.Message}");
+        }
+    }
+
+    private static void TryReadAndWithdraw(BankAccount account)
+    {
+        Console.WriteLine("Você deseja efetuar um saque? (S/N)");
+        var answer = Console.ReadLine()?.Trim().ToLowerInvariant();
+
+        if (answer is not ("s" or "y"))
+        {
+            Console.WriteLine("Operação de saque cancelada.");
+            return;
+        }
+
+        Console.Write("Informe o valor a sacar: R$ ");
+        if (!int.TryParse(Console.ReadLine(), out var amount))
+        {
+            Console.WriteLine("Valor inválido para saque.");
+            return;
+        }
+
+        try
+        {
+            account.Withdraw(amount);
+            Console.WriteLine($"Saque realizado. Novo saldo: R$ {account.Balance}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erro ao sacar: {ex.Message}");
+        }
     }
 }

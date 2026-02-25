@@ -75,12 +75,12 @@ dotnet publish -c Release
 ## 📚 Conceitos Abordados
 
 - Variáveis e Tipos de Dados
-- Estruturas de Controle (if, else, switch)
-- Laços de Repetição (for, while, foreach)
-- Arrays e Coleções
-- Métodos e Funções
-- Entrada e Saída de Dados
-- Tratamento de Exceções (try-catch)
+- Estruturas de Controle (if/else)
+- Classes e encapsulamento
+- Métodos e construtores
+- Entrada e saída de dados no console
+- Tratamento de exceções
+- Validação de dados de entrada
 
 ## 🤝 Contribuições
 
